@@ -1,0 +1,131 @@
+version: '3.1'
+
+services:
+  traefik:
+    image: "traefik:v2.3"
+    container_name: "traefik"
+    command:
+      - "--log.level=DEBUG"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "8000:80"
+      - "8080:8080"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+  api:
+    image: dto-api
+    restart: always
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=PathPrefix(`/api`)"
+      - "traefik.http.routers.api.entrypoints=web"
+    environment:
+      ENVIRONMENT: local
+      DM_API_AUTH_TOKENS: abc123:def456
+    ports:
+      - 5000:5000
+  buyer-frontend:
+    image: dto-buyer-frontend
+    restart: always
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.buyer-frontend.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.buyer-frontend.entrypoints=web"
+    environment:
+      ENVIRONMENT: local
+      DM_DATA_API_URL: http://localhost:5000
+      DM_DATA_API_AUTH_TOKEN: abc123:def456
+    ports:
+      - 5002:5002
+  frontend:
+    image: dto-frontend
+    restart: always
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=PathPrefix(`/signup`) || PathPrefix(`/2`) || PathPrefix(`/bundle`)"
+      - "traefik.http.routers.frontend.entrypoints=web"
+    environment:
+      ENVIRONMENT: local
+      DM_DATA_API_URL: http://localhost:5000
+      DM_DATA_API_AUTH_TOKEN: abc123:def456
+    ports:
+      - 60000:60000
+  supplier-frontend:
+    image: dto-supplier-frontend
+    restart: always
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.supplier-frontend.rule=PathPrefix(`/sellers`)"
+      - "traefik.http.routers.supplier-frontend.entrypoints=web"
+    environment:
+      ENVIRONMENT: local
+      DM_DATA_API_URL: http://localhost:5000
+      DM_DATA_API_AUTH_TOKEN: abc123:def456
+    ports:
+      - 5003:5003
+  admin-frontend:
+    image: dto-admin-frontend
+    restart: always
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.admin-frontend.rule=PathPrefix(`/admin`)"
+      - "traefik.http.routers.admin-frontend.entrypoints=web"
+    environment:
+      ENVIRONMENT: local
+      DM_DATA_API_URL: http://localhost:5000
+      DM_DATA_API_AUTH_TOKEN: abc123:def456
+    ports:
+      - 5004:5004
+  db:
+    image: circleci/postgres:9.5-alpine-ram
+    restart: always
+    environment:
+      POSTGRES_USER: api
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: digitalmarketplace
+    ports:
+      - 5432:5432
+
+  redis:
+    image: redis:5.0.5-alpine
+    restart: always
+    ports:
+      - 6379:6379
+
+  # redis-commander:
+  #   container_name: redis-commander
+  #   hostname: redis-commander
+  #   image: rediscommander/redis-commander:latest
+  #   restart: always
+  #   environment:
+  #   - REDIS_HOSTS=local:redis:6379
+  #   ports:
+  #   - "8081:8081"
+
+  # pgadmin:
+  #   image: dpage/pgadmin4:latest
+  #   restart: always
+  #   ports:
+  #     - 8080:80
+  #   volumes:
+  #     - "~/dm/docker/pgadmin:/var/lib/pgadmin"
+  #   environment:
+  #     PGADMIN_DEFAULT_EMAIL: a@b.cm
+  #     PGADMIN_DEFAULT_PASSWORD: 1234
+      
+  # localstack:
+  #   image: localstack/localstack:0.9.0
+  #   restart: always
+  #   ports:
+  #     - "4567-4583:4567-4583"
+  #     - "9000:8080"
+  #   environment:
+  #     - DOCKER_HOST=unix:///var/run/docker.sock
+  #     - DATA_DIR=/tmp/localstack/data
+  #     - LAMBDA_EXECUTOR=local
+  #   volumes:
+  #     - "~/dm/docker/localstack/data:/tmp/localstack/data"
+  #     - "/var/run/docker.sock:/var/run/docker.sock"
