@@ -16,7 +16,9 @@ services:
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
   api:
-    image: dto-api
+    build:
+      context: ./dto-digitalmarketplace-api
+      dockerfile: ./Dockerfile
     restart: always
     labels:
       - "traefik.enable=true"
@@ -25,10 +27,26 @@ services:
     environment:
       ENVIRONMENT: local
       DM_API_AUTH_TOKENS: abc123:def456
+      DATABASE_URL: postgres://api:password@host.docker.internal:5432/digitalmarketplace
     ports:
       - 5000:5000
+  api-worker:
+    build:
+      context: ./dto-digitalmarketplace-api
+      dockerfile: ./Dockerfile
+    command: scripts/run_celery_worker_and_beat.sh
+    restart: always
+    environment:
+      ENVIRONMENT: local
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: ap-southeast-2
+      DM_API_AUTH_TOKENS: abc123:def456
+      DATABASE_URL: postgres://api:password@host.docker.internal:5432/digitalmarketplace
   buyer-frontend:
-    image: dto-buyer-frontend
+    build:
+      context: ./dto-digitalmarketplace-buyer-frontend
+      dockerfile: ./Dockerfile
     restart: always
     labels:
       - "traefik.enable=true"
@@ -41,7 +59,9 @@ services:
     ports:
       - 5002:5002
   frontend:
-    image: dto-frontend
+    build:
+      context: ./dto-digitalmarketplace-frontend
+      dockerfile: ./Dockerfile
     restart: always
     labels:
       - "traefik.enable=true"
@@ -54,7 +74,9 @@ services:
     ports:
       - 60000:60000
   supplier-frontend:
-    image: dto-supplier-frontend
+    build:
+      context: ./dto-digitalmarketplace-supplier-frontend
+      dockerfile: ./Dockerfile
     restart: always
     labels:
       - "traefik.enable=true"
@@ -67,7 +89,9 @@ services:
     ports:
       - 5003:5003
   admin-frontend:
-    image: dto-admin-frontend
+    build:
+      context: ./dto-digitalmarketplace-admin-frontend
+      dockerfile: ./Dockerfile
     restart: always
     labels:
       - "traefik.enable=true"
@@ -80,7 +104,7 @@ services:
     ports:
       - 5004:5004
   db:
-    image: circleci/postgres:9.5-alpine-ram
+    image: circleci/postgres:9.6-alpine-ram
     restart: always
     environment:
       POSTGRES_USER: api
@@ -109,23 +133,23 @@ services:
   #   image: dpage/pgadmin4:latest
   #   restart: always
   #   ports:
-  #     - 8080:80
+  #     - 8081:80
   #   volumes:
   #     - "~/dm/docker/pgadmin:/var/lib/pgadmin"
   #   environment:
   #     PGADMIN_DEFAULT_EMAIL: a@b.cm
   #     PGADMIN_DEFAULT_PASSWORD: 1234
       
-  # localstack:
-  #   image: localstack/localstack:0.9.0
-  #   restart: always
-  #   ports:
-  #     - "4567-4583:4567-4583"
-  #     - "9000:8080"
-  #   environment:
-  #     - DOCKER_HOST=unix:///var/run/docker.sock
-  #     - DATA_DIR=/tmp/localstack/data
-  #     - LAMBDA_EXECUTOR=local
-  #   volumes:
-  #     - "~/dm/docker/localstack/data:/tmp/localstack/data"
-  #     - "/var/run/docker.sock:/var/run/docker.sock"
+  localstack:
+    image: localstack/localstack:0.9.0
+    restart: always
+    ports:
+      - "4567-4583:4567-4583"
+      - "9000:8080"
+    environment:
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - DATA_DIR=/tmp/localstack/data
+      - LAMBDA_EXECUTOR=local
+    volumes:
+      - "~/dm/docker/localstack/data:/tmp/localstack/data"
+      - "/var/run/docker.sock:/var/run/docker.sock"
